@@ -1,0 +1,5 @@
+interface:
+  display_name: Paperback
+  short_description: Open markdown beautifully rendered in Paperback
+policy:
+  allow_implicit_invocation: true

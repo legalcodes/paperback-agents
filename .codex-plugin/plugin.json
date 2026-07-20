@@ -1,0 +1,11 @@
+{
+  "name": "paperback",
+  "version": "0.1.0",
+  "description": "Open markdown beautifully rendered in Paperback (paperback.sh). Render-only: routes to the native Mac app when installed, otherwise to the web app via a client-side handoff URL. Never uploads content, never creates share links.",
+  "skills": "./skills/",
+  "author": { "name": "Jonathan Tippens", "url": "https://paperback.sh" },
+  "homepage": "https://paperback.sh",
+  "repository": "https://github.com/legalcodes/paperback-agents",
+  "license": "MIT",
+  "keywords": ["markdown", "reading", "rendering", "paperback"]
+}
