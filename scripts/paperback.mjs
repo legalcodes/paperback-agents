@@ -143,9 +143,18 @@ export function chooseTarget({ web = false, app = false, urlOnly = false, hasBas
   return { target: platform === 'darwin' && appInstalled ? 'app' : 'web' }
 }
 
-/** True when the Paperback Mac app is installed (macOS only; `open -Ra` exits 0). */
+/**
+ * True when the Paperback Mac app is installed (macOS only). Filesystem
+ * check first: `open -Ra` is blocked inside command sandboxes (e.g. Codex's
+ * default seatbelt), which misread "installed" as "absent" and silently
+ * rerouted to the web path (field failure 2026-07-20). `open -Ra` remains
+ * the fallback for nonstandard install locations.
+ */
 export function detectApp() {
   if (process.platform !== 'darwin') return false
+  for (const p of ['/Applications/Paperback.app', join(homedir(), 'Applications', 'Paperback.app')]) {
+    if (existsSync(p)) return true
+  }
   try {
     execFileSync('open', ['-Ra', 'Paperback'], { stdio: 'ignore' })
     return true
@@ -223,15 +232,35 @@ function openInApp(paths) {
   try {
     execFileSync('open', ['-a', 'Paperback', ...paths], { stdio: 'ignore' })
   } catch {
-    console.error('paperback: failed to open the Paperback app (`open -a Paperback` errored)')
+    console.error('paperback: failed to open the Paperback app (`open -a Paperback` errored).')
+    console.error(
+      'Command sandboxes (e.g. Codex default) block `open`: re-run this exact command with escalated permissions/approval.',
+    )
     process.exit(1)
   }
 }
 
+/**
+ * Open a URL in the default browser, LOUDLY. The original detached
+ * fire-and-forget spawn swallowed sandbox denials: the script exited 0,
+ * the agent reported success, and nothing had opened (field failure
+ * 2026-07-20). Failure now exits nonzero with recovery instructions.
+ */
 function openUrl(url) {
-  const cmd =
-    process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-  spawn(cmd, [url], { detached: true, stdio: 'ignore' }).unref()
+  if (process.platform === 'win32') {
+    spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' }).unref()
+    return
+  }
+  const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open'
+  try {
+    execFileSync(cmd, [url], { stdio: 'ignore' })
+  } catch {
+    console.error(`paperback: couldn't open a browser (\`${cmd}\` errored — sandboxed session?).`)
+    console.error(
+      'Re-run this exact command with escalated permissions/approval. Only if no escalation exists, fall back to --url-only and hand the user the link.',
+    )
+    process.exitCode = 1
+  }
 }
 
 function main() {

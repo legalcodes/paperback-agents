@@ -27,6 +27,12 @@ Flags:
 - `--url-only` — print the handoff URL instead of opening anything (use this in remote or headless sessions and give the user the link)
 - `--app` — require the Mac app; error if it is not installed
 
+## Sandboxed harnesses (read this if nothing opens)
+
+Opening the app or a browser runs the OS `open` command, which command sandboxes (including Codex's default) block. The CLI fails loudly when that happens: nonzero exit plus a message. When you see it, **re-run the exact same command with escalated permissions/approval** — that is the fix, and it needs the user's one approval click. Do NOT route around it by generating the handoff URL yourself or passing `--url-only` output through your own context: the URL contains the full document (compressed), so that needlessly copies the user's document into your transcript. Reserve `--url-only` for remote/headless sessions where nothing local can open, and hand the user the link with minimal handling.
+
+A clean exit (code 0, no output) means the open succeeded.
+
 ## Rules
 
 - One document per open. "Show me these 3 docs" = pass all 3 paths in one call; they open as 3 tabs in the order given.
