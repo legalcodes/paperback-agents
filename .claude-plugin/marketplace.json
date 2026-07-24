@@ -1,11 +1,14 @@
 {
   "name": "paperback-agents",
-  "owner": { "name": "Jonathan Tippens", "url": "https://paperback.sh" },
+  "owner": {
+    "name": "Jonathan Tippens",
+    "url": "https://paperback.sh"
+  },
   "plugins": [
     {
       "name": "paperback",
       "source": "./",
-      "description": "Open markdown beautifully rendered in Paperback (paperback.sh). Render-only."
+      "description": "Open markdown beautifully rendered in Paperback (paperback.sh); also writes into an existing live doc a human handed you."
     }
   ]
 }

@@ -26,12 +26,13 @@ Requires `node` on your machine. The Mac app is optional; without it, documents 
 ## What it does, and deliberately does not do
 
 - **Renders.** Files on disk or content the agent just wrote. Mac app first (`open -a Paperback`), web fallback via a compressed handoff URL.
-- **Nothing leaves your machine.** On the web path the document travels inside the URL fragment (`#d=`), which browsers never send to any server. No uploads, no analytics on your content, no accounts.
-- **No sharing.** This plugin never creates paperback.sh share links and never uploads document content. Sharing is a human action inside the app, by design: agents render, humans publish.
+- **Rendering stays on your machine.** On the web render path the document travels inside the URL fragment (`#d=`), which browsers never send to any server. No uploads, no analytics on your content, no accounts.
+- **Writes to a live doc you were handed.** If your user gives an agent a live doc's edit link (`paperback.sh/d/<id>#k=<token>`), the plugin reads the current text and writes updated markdown back, under a compare-and-swap anchor so it never clobbers a collaborator's concurrent edit. This is the one path where content goes to paperback.sh, and only for a doc a human already made live and handed over out-of-band.
+- **Never creates, rotates, or deletes.** The plugin never mints a share link, never creates or rotates or deletes a live doc or its edit link, and never uploads a new document. Creating and sharing stay human, in-app actions, by design: agents render and edit what they're handed, humans publish.
 
 ## Layout
 
 - `skills/paperback/SKILL.md` — the skill (same file serves Codex and Claude Code)
-- `scripts/paperback.mjs` — self-contained CLI (routing, handoff encoding); no dependencies beyond node
+- `scripts/paperback.mjs` — self-contained CLI (render routing + handoff encoding, plus `live read` / `live write` for an existing live doc); no dependencies beyond node
 - `.codex-plugin/` + `.agents/plugins/` — Codex plugin + marketplace manifests
 - `.claude-plugin/` — Claude Code plugin + marketplace manifests (also read by Codex's legacy auto-import)
