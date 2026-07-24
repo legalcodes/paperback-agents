@@ -1,11 +1,20 @@
 {
   "name": "paperback",
-  "version": "0.1.1",
-  "description": "Open markdown beautifully rendered in Paperback (paperback.sh). Render-only: routes to the native Mac app when installed, otherwise to the web app via a client-side handoff URL. Never uploads content, never creates share links.",
+  "version": "0.2.0",
+  "description": "Open markdown beautifully rendered in Paperback (paperback.sh), and write into an EXISTING live doc a human handed you (via its edit link). Render routes to the native Mac app when installed, otherwise the web app via a client-side handoff URL. Never creates, rotates, or deletes docs or share links: those stay human, in-app actions.",
   "skills": "./skills/",
-  "author": { "name": "Jonathan Tippens", "url": "https://paperback.sh" },
+  "author": {
+    "name": "Jonathan Tippens",
+    "url": "https://paperback.sh"
+  },
   "homepage": "https://paperback.sh",
   "repository": "https://github.com/legalcodes/paperback-agents",
   "license": "MIT",
-  "keywords": ["markdown", "reading", "rendering", "paperback"]
+  "keywords": [
+    "markdown",
+    "reading",
+    "rendering",
+    "paperback",
+    "live-docs"
+  ]
 }

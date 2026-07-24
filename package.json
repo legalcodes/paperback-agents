@@ -1,0 +1,10 @@
+{
+  "name": "paperback-agents",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Agent-harness plugin for Paperback: render markdown and write to an existing live doc, from Codex and Claude Code.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  }
+}
