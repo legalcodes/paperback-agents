@@ -50,7 +50,7 @@ import { extname, join, resolve } from 'node:path'
 const MAX_PAYLOAD_CHARS = 1_000_000
 const HANDOFF_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
-const HELP = `paperback — open markdown in Paperback (render-only)
+const HELP = `paperback — open markdown in Paperback (render; see \`live\` for live docs)
 
 Usage:
   paperback a.md b.md                open files (Mac app if installed, else paperback.sh)

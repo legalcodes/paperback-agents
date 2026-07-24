@@ -7,7 +7,9 @@ description: Open markdown beautifully rendered in Paperback when the user asks 
 
 Paperback (https://paperback.sh) renders markdown beautifully for reading: typography-first reading view, table of contents, math, Mermaid diagrams, syntax highlighting, GFM tables and footnotes. This skill opens documents there.
 
-**Render-only, by design.** This skill never uploads document content anywhere and never creates Paperback share links. Sharing is a human action inside the app, and this skill must not be extended to perform it. On the web path the document travels compressed inside the URL fragment (`#d=`), which browsers never send to any server: the content stays client-side.
+**The render verb keeps content on the machine.** When you *render* a document (the "How" section below), nothing is uploaded: on the web path the document travels compressed inside the URL fragment (`#d=`), which browsers never send to any server, so the content stays client-side. The render verb never creates a Paperback share link.
+
+**The live-doc write verb below deliberately sends markdown to paperback.sh** (see "Write to a live doc"), but ONLY into a doc a human already made live and whose edit link they handed you. That is not share creation and it is an intended workflow: do not refuse it on the grounds that this skill "does not upload." What stays forbidden across BOTH verbs: this skill never creates, rotates, or deletes a live doc or a share link, and never mints a new shareable link. Those are human, in-app actions.
 
 ## How
 
