@@ -4,8 +4,8 @@
 //  1. Pure unit tests for link parsing and anchor quoting (imported directly).
 //  2. End-to-end CLI tests: spawn `node scripts/paperback.mjs live ...` against
 //     a local mock implementing the shipped B3 contract shape (GET returns text
-//     + quoted-ETag anchor; PUT requires Bearer + If-Match, 200 {id,rev} + new
-//     ETag on match, 412 fresh state on stale anchor, 404 on bad/rotated token,
+//     + x-live-anchor while an intermediary weakens ETag; PUT requires Bearer +
+//     If-Match, 200 {id,rev} + new anchor on match, 412 fresh state + anchor on stale,
 //     400 on raw If-Match: *). Grounded against paperback server/live-docs.ts
 //     and server/live-b3-agent.test.ts.
 //
@@ -136,10 +136,29 @@ test('unquoteAnchor: strips one layer of surrounding quotes', () => {
 
 // ---------- e2e: CLI against a mock B3 server ----------
 
-const anchorOf = (t) => createHash('sha256').update(t, 'utf8').digest('hex').slice(0, 16)
+const anchorOf = (t) => createHash('sha256').update(t, 'utf8').digest('hex')
+
+function anchorHeaders(text, mode = 'valid') {
+  const anchor = anchorOf(text)
+  return {
+    ...(mode === 'missing'
+      ? {}
+      : { 'x-live-anchor': mode === 'malformed' ? 'not-a-sha256' : anchor }),
+    // Production compression may legally rewrite only this compatibility
+    // validator. The CLI must never parse it as protocol state.
+    etag: `W/"${anchor}"`,
+  }
+}
 
 /** Start a mock implementing the B3 contract shape. Returns { port, close }. */
-function startMock({ id = 'doc42', token = 'goodtoken', text = '# Live doc\nversion one\n' } = {}) {
+function startMock({
+  id = 'doc42',
+  token = 'goodtoken',
+  text = '# Live doc\nversion one\n',
+  readAnchorMode = 'valid',
+  writeAnchorMode = 'valid',
+  staleAnchorMode = 'valid',
+} = {}) {
   const doc = { text, rev: 1 }
   const server = http.createServer((req, res) => {
     const m = /^\/api\/live\/([^/?#]+)$/.exec(req.url)
@@ -150,7 +169,7 @@ function startMock({ id = 'doc42', token = 'goodtoken', text = '# Live doc\nvers
       if (!authed) return void res.writeHead(404).end('Not found.')
       res.writeHead(200, {
         'content-type': 'text/markdown; charset=utf-8',
-        etag: `"${anchorOf(doc.text)}"`,
+        ...anchorHeaders(doc.text, readAnchorMode),
       })
       return void res.end(doc.text)
     }
@@ -166,7 +185,7 @@ function startMock({ id = 'doc42', token = 'goodtoken', text = '# Live doc\nvers
         if (want !== anchorOf(doc.text)) {
           res.writeHead(412, {
             'content-type': 'text/markdown; charset=utf-8',
-            etag: `"${anchorOf(doc.text)}"`,
+            ...anchorHeaders(doc.text, staleAnchorMode),
           })
           return void res.end(doc.text)
         }
@@ -174,7 +193,7 @@ function startMock({ id = 'doc42', token = 'goodtoken', text = '# Live doc\nvers
         doc.rev += 1
         res.writeHead(200, {
           'content-type': 'application/json; charset=utf-8',
-          etag: `"${anchorOf(doc.text)}"`,
+          ...anchorHeaders(doc.text, writeAnchorMode),
         })
         res.end(JSON.stringify({ id: m[1], rev: doc.rev }))
       })
@@ -207,7 +226,7 @@ test('read: prints current text to stdout and the anchor to stderr, exit 0', asy
     const r = await runCli(['live', 'read', link(mock.port)])
     assert.equal(r.code, 0)
     assert.equal(r.stdout, '# Live doc\nversion one\n')
-    assert.match(r.stderr, /anchor: [0-9a-f]{16}/)
+    assert.match(r.stderr, /anchor: [0-9a-f]{64}/)
   } finally {
     mock.close()
   }
@@ -222,7 +241,60 @@ test('write with the read anchor lands: exit 0, new anchor reported', async () =
       input: '# Live doc\nversion two\n',
     })
     assert.equal(w.code, 0)
-    assert.match(w.stderr, /wrote \(rev 2\); new anchor: [0-9a-f]{16}/)
+    assert.match(w.stderr, /wrote \(rev 2\); new anchor: [0-9a-f]{64}/)
+  } finally {
+    mock.close()
+  }
+})
+
+for (const anchorMode of ['missing', 'malformed']) {
+  test(`read: ${anchorMode} x-live-anchor fails closed despite a usable ETag`, async () => {
+    const mock = await startMock({ readAnchorMode: anchorMode })
+    try {
+      const r = await runCli(['live', 'read', link(mock.port)])
+      assert.equal(r.code, 1)
+      assert.equal(r.stdout, '')
+      assert.match(r.stderr, /x-live-anchor/)
+    } finally {
+      mock.close()
+    }
+  })
+}
+
+for (const staleAnchorMode of ['missing', 'malformed']) {
+  test(`stale write: ${staleAnchorMode} fresh anchor stops without a retry base`, async () => {
+    const mock = await startMock({ staleAnchorMode })
+    try {
+      const read = await runCli(['live', 'read', link(mock.port)])
+      const stale = /anchor: (\S+)/.exec(read.stderr)[1]
+      await runCli(['live', 'write', link(mock.port), '--if-match', stale], {
+        input: 'version two\n',
+      })
+      const w = await runCli(['live', 'write', link(mock.port), '--if-match', stale], {
+        input: 'version three\n',
+      })
+      assert.equal(w.code, 1)
+      assert.equal(w.stdout, '')
+      assert.match(w.stderr, /x-live-anchor/)
+      assert.match(w.stderr, /stop without retrying/)
+    } finally {
+      mock.close()
+    }
+  })
+}
+
+test('successful write with a missing new anchor reports landed and requires a re-read', async () => {
+  const mock = await startMock({ writeAnchorMode: 'missing' })
+  try {
+    const read = await runCli(['live', 'read', link(mock.port)])
+    const anchor = /anchor: (\S+)/.exec(read.stderr)[1]
+    const w = await runCli(['live', 'write', link(mock.port), '--if-match', anchor], {
+      input: 'version two\n',
+    })
+    assert.equal(w.code, 0)
+    assert.match(w.stderr, /wrote \(rev 2\)/)
+    assert.match(w.stderr, /read again before another write/)
+    assert.doesNotMatch(w.stderr, /W\//)
   } finally {
     mock.close()
   }
