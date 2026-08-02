@@ -152,6 +152,60 @@ export function chooseTarget({ web = false, app = false, urlOnly = false, hasBas
 }
 
 /**
+ * Map a running app executable path back to its .app bundle.
+ */
+export function appBundleFromExecutable(path) {
+  const marker = '/Contents/MacOS/'
+  const i = path.indexOf(marker)
+  if (i === -1) return null
+  const bundle = path.slice(0, i)
+  return bundle.endsWith('/Paperback.app') ? bundle : null
+}
+
+function runningPaperbackExecutables() {
+  try {
+    return execFileSync('ps', ['-axo', 'comm='], { encoding: 'utf8' })
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s.includes('/Paperback.app/Contents/MacOS/'))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Pick the exact app bundle to launch when possible. `open -a Paperback` is
+ * ambiguous on development machines that have both /Applications/Paperback.app
+ * and a repo-built Paperback.app with the same bundle id: Launch Services can
+ * focus one app while the intended document-open event is routed elsewhere or
+ * dropped. Prefer the running bundle, then common explicit bundle locations.
+ */
+export function preferredAppBundle({
+  env = process.env,
+  home = homedir(),
+  exists = existsSync,
+  runningExecutables = runningPaperbackExecutables(),
+} = {}) {
+  const envPath = env.PAPERBACK_APP_PATH
+  if (envPath && exists(envPath)) return envPath
+
+  for (const exe of runningExecutables) {
+    const bundle = appBundleFromExecutable(exe)
+    if (bundle && exists(bundle)) return bundle
+  }
+
+  for (const p of [
+    join(home, 'gh', 'paperback', 'src-tauri', 'target', 'release', 'bundle', 'macos', 'Paperback.app'),
+    '/Applications/Paperback.app',
+    join(home, 'Applications', 'Paperback.app'),
+  ]) {
+    if (exists(p)) return p
+  }
+
+  return null
+}
+
+/**
  * True when the Paperback Mac app is installed (macOS only). Filesystem
  * check first: `open -Ra` is blocked inside command sandboxes (e.g. Codex's
  * default seatbelt), which misread "installed" as "absent" and silently
@@ -160,9 +214,7 @@ export function chooseTarget({ web = false, app = false, urlOnly = false, hasBas
  */
 export function detectApp() {
   if (process.platform !== 'darwin') return false
-  for (const p of ['/Applications/Paperback.app', join(homedir(), 'Applications', 'Paperback.app')]) {
-    if (existsSync(p)) return true
-  }
+  if (preferredAppBundle()) return true
   try {
     execFileSync('open', ['-Ra', 'Paperback'], { stdio: 'ignore' })
     return true
@@ -238,9 +290,10 @@ function writeHandoffFile(markdown) {
 
 function openInApp(paths) {
   try {
-    execFileSync('open', ['-a', 'Paperback', ...paths], { stdio: 'ignore' })
+    const app = preferredAppBundle()
+    execFileSync('open', app ? ['-a', app, ...paths] : ['-a', 'Paperback', ...paths], { stdio: 'ignore' })
   } catch {
-    console.error('paperback: failed to open the Paperback app (`open -a Paperback` errored).')
+    console.error('paperback: failed to open the Paperback app (`open -a ...` errored).')
     console.error(
       'Command sandboxes (e.g. Codex default) block `open`: re-run this exact command with escalated permissions/approval.',
     )

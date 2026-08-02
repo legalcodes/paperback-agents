@@ -17,7 +17,14 @@ import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
-import { parseLiveLink, quoteAnchor, unquoteAnchor, liveApiUrl } from '../scripts/paperback.mjs'
+import {
+  appBundleFromExecutable,
+  liveApiUrl,
+  parseLiveLink,
+  preferredAppBundle,
+  quoteAnchor,
+  unquoteAnchor,
+} from '../scripts/paperback.mjs'
 
 const CLI = fileURLToPath(new URL('../scripts/paperback.mjs', import.meta.url))
 
@@ -62,6 +69,45 @@ test('parseLiveLink: missing link is a hard error', () => {
 test('liveApiUrl: maps origin + id to the /api/live/<id> endpoint', () => {
   assert.equal(liveApiUrl('https://paperback.sh', 'abc123'), 'https://paperback.sh/api/live/abc123')
   assert.equal(liveApiUrl('http://localhost:5180/', 'x'), 'http://localhost:5180/api/live/x')
+})
+
+// ---------- unit: app bundle selection ----------
+
+test('appBundleFromExecutable: maps a running Paperback executable to its bundle', () => {
+  assert.equal(
+    appBundleFromExecutable('/Users/jon/gh/paperback/src-tauri/target/release/bundle/macos/Paperback.app/Contents/MacOS/paperback'),
+    '/Users/jon/gh/paperback/src-tauri/target/release/bundle/macos/Paperback.app',
+  )
+  assert.equal(appBundleFromExecutable('/Applications/Other.app/Contents/MacOS/paperback'), null)
+})
+
+test('preferredAppBundle: env override wins when it exists', () => {
+  const exists = (p) => p === '/tmp/Paperback.app'
+  assert.equal(
+    preferredAppBundle({
+      env: { PAPERBACK_APP_PATH: '/tmp/Paperback.app' },
+      home: '/Users/jon',
+      exists,
+      runningExecutables: ['/Applications/Paperback.app/Contents/MacOS/paperback'],
+    }),
+    '/tmp/Paperback.app',
+  )
+})
+
+test('preferredAppBundle: running app beats common install locations', () => {
+  const exists = (p) =>
+    p === '/Users/jon/dev/Paperback.app' ||
+    p === '/Users/jon/gh/paperback/src-tauri/target/release/bundle/macos/Paperback.app' ||
+    p === '/Applications/Paperback.app'
+  assert.equal(
+    preferredAppBundle({
+      env: {},
+      home: '/Users/jon',
+      exists,
+      runningExecutables: ['/Users/jon/dev/Paperback.app/Contents/MacOS/paperback'],
+    }),
+    '/Users/jon/dev/Paperback.app',
+  )
 })
 
 // ---------- unit: anchor quoting (the bare-* safety property) ----------
