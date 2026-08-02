@@ -52,13 +52,13 @@ A Paperback live doc is a collaborative document at `https://paperback.sh/d/<id>
 Take the doc id from the `/d/<id>` path and the edit token from the `#k=` fragment, then read and write over plain HTTP:
 
 ```sh
-# Read the current text. The ETag response header is the anchor for your next write.
+# Read the current text. x-live-anchor is the anchor for your next write.
 curl -i -H 'Authorization: Bearer <token>' https://paperback.sh/api/live/<id>
 
 # Write whole-body markdown, anchored to the exact text you last read.
 curl -X PUT https://paperback.sh/api/live/<id> \
   -H 'Authorization: Bearer <token>' \
-  -H 'If-Match: "<etag-from-your-last-read>"' \
+  -H 'If-Match: "<x-live-anchor-from-your-last-read>"' \
   -H 'Content-Type: text/markdown' \
   --data-binary @plan.md
 ```
@@ -81,7 +81,8 @@ cat plan.md | $PB live write 'https://paperback.sh/d/<id>#k=<token>' --if-match 
 Every write names the exact text it was based on, so you can never silently overwrite a collaborator's concurrent edit. Read, reapply, write; never force:
 
 - `If-Match` is REQUIRED. Read first, take the anchor, then write with it. `If-Match: *` is rejected on purpose.
-- A **412** means the doc changed since your read. The 412 body IS the fresh text, and its anchor is in the `ETag` header (the CLI prints the fresh text to stdout, the anchor to stderr, and exits nonzero). REAPPLY your change to the fresh text and retry with the new anchor. Never blind-retry, never force-overwrite.
+- `x-live-anchor` must be present and exactly 64 lowercase hexadecimal characters. If it is missing or malformed, stop without PUT. Never derive it from ETag; edge compression may rewrite ETag.
+- A **412** means the doc changed since your read. The 412 body IS the fresh text, and its fresh anchor is in `x-live-anchor` (the CLI prints the fresh text to stdout, the anchor to stderr, and exits nonzero). REAPPLY your change to the fresh text and retry with the new anchor. Never blind-retry, never force-overwrite.
 - A **404** means the link no longer works: wrong or rotated token, or the doc was deleted. Stop and tell your user; a rotated link is revoked on purpose. Do not try to recreate or re-mint it.
 - Bodies are markdown (`text/markdown`), non-empty, 2 MB max (`413` above it). A write replaces the whole body; there is no merge, the anchor discipline is the concurrency contract.
 
