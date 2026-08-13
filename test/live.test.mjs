@@ -32,6 +32,8 @@ const SKILL = readFileSync(
   fileURLToPath(new URL('../skills/paperback/SKILL.md', import.meta.url)),
   'utf8',
 )
+// Prose wraps; the instruction is what matters, not the column it broke at.
+const SKILL_FLAT = SKILL.replace(/\s+/g, ' ')
 
 // ---------- published skill contract ----------
 
@@ -47,6 +49,58 @@ test('skill teaches structured review read and bearer-only atomic action', () =>
   assert.match(SKILL, /1–200 total actions/)
   assert.match(SKILL, /no more than 120 `reply` actions/)
   assert.match(SKILL, /The PUT is bearer-only/)
+})
+
+test('skill scopes review work to the whole document, not the commented span', () => {
+  // The failure this pins: an agent edits only the passage a comment points at,
+  // ships a document whose surrounding text now contradicts it, and leaves the
+  // user to find the seams. "Atomic" must not read as "one comment at a time."
+  assert.match(
+    SKILL_FLAT,
+    /Atomic describes the write, not the scope of your work/,
+  )
+  assert.match(SKILL_FLAT, /It does not mean each comment is handled in isolation/)
+  assert.match(
+    SKILL_FLAT,
+    /A comment marks where your user noticed something, not how far the work reaches/,
+  )
+  assert.match(SKILL_FLAT, /it is the document you are publishing/)
+  assert.match(
+    SKILL_FLAT,
+    /reread the whole document and follow each change everywhere it lands/,
+  )
+  // The sweep must stay general. Each named class is a distinct way an edit
+  // reaches past its own paragraph; dropping one silently narrows the sweep.
+  for (const consequence of [
+    /sequence and transition language/,
+    /cross-references to a section, heading, or passage/,
+    /counts and enumerations/,
+    /terminology after a rename/,
+    /summaries, introductions, and conclusions/,
+    /claims elsewhere that your edit just made wrong/,
+    /other open threads/,
+  ]) assert.match(SKILL_FLAT, consequence)
+})
+
+test('skill bounds the sweep so it does not license unrequested rewrites', () => {
+  assert.match(SKILL_FLAT, /This does not widen your mandate/)
+  assert.match(
+    SKILL_FLAT,
+    /new opinions, restructuring, and improvements they did not ask for are not/,
+  )
+  assert.match(
+    SKILL_FLAT,
+    /make the edits you are sure of and name what you left, and why, in your reply/,
+  )
+})
+
+test('skill explains both ways an edit detaches another reviewer thread', () => {
+  // Grounded in paperback server/live-range-anchor-evidence.test.ts: an anchor
+  // detaches with no_candidate when its text is rewritten, AND as ambiguous
+  // when a second identical passage appears. The second is not guessable.
+  assert.match(SKILL_FLAT, /rewriting or deleting text a thread is anchored to detaches it/)
+  assert.match(SKILL_FLAT, /introducing a second identical passage/)
+  assert.match(SKILL_FLAT, /the anchor can no longer be told apart/)
 })
 
 test('skill preserves the human-authorization and private-context boundary', () => {

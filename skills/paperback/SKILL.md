@@ -89,6 +89,10 @@ directly; the default `GET /api/live/<id>` deliberately remains pure Markdown.
 
 ### Address Comments atomically
 
+Atomic describes the write, not the scope of your work: one operation lands the
+complete document and every reply together. It does not mean each comment is
+handled in isolation.
+
 Read the complete body-and-review bundle with the same Bearer token:
 
 ```sh
@@ -140,11 +144,47 @@ The request must carry a fixed `Content-Length`; `curl --data-binary` calculates
 it automatically. A chunked request is refused with `411` before mutation.
 
 Supply 1–200 total actions, with no more than 120 `reply` actions. Each is
-exactly `reply` (with `body`), `resolve`, or `reopen`. For review-only work,
-send unchanged complete `content` with the actions. The PUT is bearer-only;
-an owner browser session is not a substitute
+exactly `reply` (with `body`), `resolve`, or `reopen`. When the feedback needs
+no change to the body, send the current complete `content` unchanged alongside
+the actions. The PUT is bearer-only; an owner browser session is not a substitute
 for the edit token. Paperback derives `Agent` attribution and message IDs, so
 do not add identity, provenance, timestamp, or message-ID fields.
+
+### Carry every change through the whole document
+
+A comment marks where your user noticed something, not how far the work
+reaches. The `content` you send is not a patch in an envelope; it is the
+document you are publishing, and you are answerable for all of it. Before you
+build `content`, reread the whole document and follow each change everywhere it
+lands.
+
+Look at least for:
+
+- sequence and transition language: `First`, `Next`, `the second option`, `as
+  described above`, and steps or headings that renumber;
+- cross-references to a section, heading, or passage you changed, moved, or
+  removed;
+- counts and enumerations: `three reasons`, `both approaches`, numbered lists,
+  a table of contents;
+- terminology after a rename, so one name is not half-replaced;
+- summaries, introductions, and conclusions that restate what you edited;
+- claims elsewhere that your edit just made wrong, redundant, or contradictory;
+- other open threads. Read `anchors` before you write: rewriting or deleting
+  text a thread is anchored to detaches it, and so does introducing a second
+  identical passage, because the anchor can no longer be told apart. Both strand
+  a reviewer's open question.
+
+The standard is a document that reads as though it had been written this way,
+not one with a passage cut out of it. If your user has to repair the seams, the
+operation did not finish.
+
+This does not widen your mandate. Consequential edits that keep the document
+correct and coherent are part of the change your user asked for; new opinions,
+restructuring, and improvements they did not ask for are not. When a
+consequence needs a judgment you cannot make from the comment, make the edits
+you are sure of and name what you left, and why, in your reply on that thread.
+An open question costs your user one line to read. A broken document costs them
+a hunt.
 
 Agents cannot open new threads. Never use `POST /api/live/<id>/review`: that is
 the human Comments flow, and using it for agent-written content would record
