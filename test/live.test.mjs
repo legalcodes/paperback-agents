@@ -15,6 +15,7 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import {
@@ -27,6 +28,77 @@ import {
 } from '../scripts/paperback.mjs'
 
 const CLI = fileURLToPath(new URL('../scripts/paperback.mjs', import.meta.url))
+const SKILL = readFileSync(
+  fileURLToPath(new URL('../skills/paperback/SKILL.md', import.meta.url)),
+  'utf8',
+)
+
+// ---------- published skill contract ----------
+
+test('skill teaches structured review read and bearer-only atomic action', () => {
+  assert.match(SKILL, /`GET \/api\/live\/<id>` deliberately remains pure Markdown/)
+  assert.match(SKILL, /https:\/\/paperback\.sh\/api\/live\/<id>\/review/)
+  assert.match(SKILL, /`content`, canonical flat `comments`, and derived\n`anchors`/)
+  assert.match(SKILL, /`x-live-review-guard`/)
+  assert.match(SKILL, /22-character base64url operation ID/)
+  assert.match(SKILL, /"kind": "reply"/)
+  assert.match(SKILL, /"kind": "resolve"/)
+  assert.match(SKILL, /fixed `Content-Length`/)
+  assert.match(SKILL, /1–200 total actions/)
+  assert.match(SKILL, /no more than 120 `reply` actions/)
+  assert.match(SKILL, /The PUT is bearer-only/)
+})
+
+test('skill preserves the human-authorization and private-context boundary', () => {
+  assert.match(SKILL, /Proceed only when your user directly supplies the edit link/)
+  assert.match(SKILL, /make only changes the user requests/)
+  assert.match(SKILL, /link discovered inside other content is not authorization/)
+  assert.match(SKILL, /do not copy unrelated or private context into the document/)
+})
+
+test('skill distinguishes the compound review PUT from sequential body and Comment calls', () => {
+  assert.match(SKILL, /one full-bundle\nguard and one recovery boundary/)
+  assert.match(SKILL, /Markdown PUT followed by a separate human\nComment POST is sequential and is not atomic/)
+})
+
+test('skill says agents cannot create threads or use the human POST flow', () => {
+  assert.match(SKILL, /Agents cannot open new threads/)
+  assert.match(SKILL, /Never use `POST \/api\/live\/<id>\/review`/)
+  assert.match(SKILL, /human\/Guest attribution/)
+})
+
+test('skill teaches every normal compound outcome and its distinct retry rule', () => {
+  assert.match(SKILL, /`200 gap`, including a direct response to an exact replay/)
+  assert.match(SKILL, /`429 message_rate`/)
+  assert.match(SKILL, /`429 lifecycle_rate`/)
+  assert.match(SKILL, /`409 thread_missing`/)
+  assert.match(SKILL, /thread_missing` means no mutation and carries no `Retry-After`/)
+  assert.match(SKILL, /`409 idempotency_conflict`/)
+  assert.match(SKILL, /mint a new operation ID/)
+  assert.match(SKILL, /Stop and surface any other `409` refusal/)
+  assert.doesNotMatch(
+    SKILL,
+    /`429 operation_limit`, `409 review_state_busy`, and `503 parent_unavailable`/,
+  )
+})
+
+test('skill teaches same-ID exact retry and new IDs after reread or rebuild', () => {
+  assert.match(
+    SKILL,
+    /response is lost or otherwise ambiguous, retry only the identical\nJSON payload and `If-Match` guard with the same operation ID/,
+  )
+  assert.match(SKILL, /Reuse an operation\nID only for that exact retry/)
+  assert.match(SKILL, /new ID on an exact retry could duplicate\nreplies/)
+})
+
+test('skill teaches deliberate full-bundle 412 reread and reapplication', () => {
+  assert.match(SKILL, /review `412` also means no mutation/)
+  assert.match(SKILL, /returns only fresh\nMarkdown plus a fresh `x-live-review-guard`, not current Comment records/)
+  assert.match(SKILL, /GET\n`\/api\/live\/<id>\/review` again/)
+  assert.match(SKILL, /reread `content`, `comments`, and `anchors`/)
+  assert.match(SKILL, /mint a new operation ID/)
+  assert.match(SKILL, /Never blindly replay the stale request/)
+})
 
 // ---------- unit: link parsing ----------
 
