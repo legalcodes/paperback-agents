@@ -94,13 +94,45 @@ test('skill bounds the sweep so it does not license unrequested rewrites', () =>
   )
 })
 
-test('skill explains both ways an edit detaches another reviewer thread', () => {
-  // Grounded in paperback server/live-range-anchor-evidence.test.ts: an anchor
-  // detaches with no_candidate when its text is rewritten, AND as ambiguous
-  // when a second identical passage appears. The second is not guessable.
-  assert.match(SKILL_FLAT, /rewriting or deleting text a thread is anchored to detaches it/)
-  assert.match(SKILL_FLAT, /introducing a second identical passage/)
-  assert.match(SKILL_FLAT, /the anchor can no longer be told apart/)
+test('skill states anchor detachment as conditional, with the recovery mechanism', () => {
+  // Detachment is NOT unconditional, and saying so would teach agents to fear
+  // ordinary edits. Grounded in paperback
+  // server/live-range-anchor-evidence.test.ts: an insertion before the target
+  // recovers (:146), and duplicated text separated by its bounded context
+  // recovers (:174). Detachment needs the relative positions orphaned FIRST;
+  // that is a setup precondition in those tests, not their conclusion.
+  assert.match(SKILL_FLAT, /Anchors follow the document through ordinary edits/)
+  assert.match(SKILL_FLAT, /becomes vulnerable only once an edit orphans its relative positions/)
+  assert.match(SKILL_FLAT, /falls back to stored surrounding context/)
+  assert.match(SKILL_FLAT, /duplicating a passage can detach a thread/)
+  // The hedge itself is the fix; an unconditional claim must not come back.
+  assert.doesNotMatch(SKILL_FLAT, /text a thread is anchored to detaches it/)
+  assert.doesNotMatch(SKILL_FLAT, /and so does introducing a second identical passage/)
+})
+
+test('skill requires verifying untouched anchors after the write', () => {
+  assert.match(
+    SKILL_FLAT,
+    /GET `\/review` after the write to confirm the threads you did not touch are still attached/,
+  )
+})
+
+test('skill forbids resolving a thread that still carries an open judgment', () => {
+  // The trap this closes: the canonical payload demonstrates `reply` followed
+  // immediately by `resolve`, so an agent that surfaces uncertainty in a reply
+  // resolves the thread in the same breath and buries it.
+  assert.match(SKILL_FLAT, /Then leave that thread open: send the `reply` with no `resolve` beside it/)
+  assert.match(
+    SKILL_FLAT,
+    /Resolve a thread only once the comment and everything it implies are fully handled/,
+  )
+  assert.match(SKILL_FLAT, /A resolved thread is one your user stops looking at/)
+  // Pinned at the example too, not only in the prose several screens below it.
+  assert.match(
+    SKILL_FLAT,
+    /Pairing `reply` with `resolve` is correct only when that comment and everything it implies are fully handled/,
+  )
+  assert.match(SKILL_FLAT, /send the `reply` alone and leave the thread open/)
 })
 
 test('skill preserves the human-authorization and private-context boundary', () => {

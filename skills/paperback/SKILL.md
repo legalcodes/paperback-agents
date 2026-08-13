@@ -126,6 +126,10 @@ Then PUT this exact top-level JSON shape to the same `/review` URL:
 }
 ```
 
+Pairing `reply` with `resolve` is correct only when that comment and everything
+it implies are fully handled. If any judgment is still open, send the `reply`
+alone and leave the thread open.
+
 If the PUT response is lost or otherwise ambiguous, retry only the identical
 JSON payload and `If-Match` guard with the same operation ID. Reuse an operation
 ID only for that exact retry. After any reread or rebuild changes the payload or
@@ -169,10 +173,16 @@ Look at least for:
 - terminology after a rename, so one name is not half-replaced;
 - summaries, introductions, and conclusions that restate what you edited;
 - claims elsewhere that your edit just made wrong, redundant, or contradictory;
-- other open threads. Read `anchors` before you write: rewriting or deleting
-  text a thread is anchored to detaches it, and so does introducing a second
-  identical passage, because the anchor can no longer be told apart. Both strand
-  a reviewer's open question.
+- other open threads. Anchors follow the document through ordinary edits,
+  including insertions before them and edits inside them. A thread becomes
+  vulnerable only once an edit orphans its relative positions; recovery then
+  falls back to stored surrounding context, and that fallback fails when the
+  text is gone or when a duplicated passage carries enough of its surroundings
+  to be indistinguishable from the original. So removing, rewriting, or
+  duplicating a passage can detach a thread, stranding a reviewer's open
+  question somewhere you were not editing. Read `anchors` before you write, and
+  GET `/review` after the write to confirm the threads you did not touch are
+  still attached.
 
 The standard is a document that reads as though it had been written this way,
 not one with a passage cut out of it. If your user has to repair the seams, the
@@ -183,8 +193,12 @@ correct and coherent are part of the change your user asked for; new opinions,
 restructuring, and improvements they did not ask for are not. When a
 consequence needs a judgment you cannot make from the comment, make the edits
 you are sure of and name what you left, and why, in your reply on that thread.
-An open question costs your user one line to read. A broken document costs them
-a hunt.
+
+Then leave that thread open: send the `reply` with no `resolve` beside it.
+Resolve a thread only once the comment and everything it implies are fully
+handled. A resolved thread is one your user stops looking at, so resolving over
+an open question buries it. An open question costs your user one line to read.
+A broken document costs them a hunt.
 
 Agents cannot open new threads. Never use `POST /api/live/<id>/review`: that is
 the human Comments flow, and using it for agent-written content would record
